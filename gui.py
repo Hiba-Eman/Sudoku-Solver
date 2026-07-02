@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 from solver import SudokuSolver
 import time
 
@@ -12,18 +13,22 @@ class SudokuGUI:
         self.root.configure(bg="#1E1E1E")
         self.root.resizable(False, False)
         self.center_window()
-        
+
+        validate = self.root.register(self.validate_input)
+        self.validate = validate
+
         self.cells = []
         self.create_grid()
+
         self.timer_label = tk.Label(
-        self.root,
-        text="",
-        bg="#1E1E1E",
-        fg="white",
-        font=("Arial", 12)
+            self.root,
+            text="",
+            bg="#1E1E1E",
+            fg="white",
+            font=("Arial", 12)
         )
 
-        self.timer_label.pack(pady=10)  
+        self.timer_label.pack(pady=10) 
 
 
     def center_window(self):
@@ -58,19 +63,28 @@ class SudokuGUI:
 
                 cell = tk.Entry(
                     board,
-                    width=2,
-                    font=("Arial", 20),
+                    width=3,
+                    font=("Segoe UI", 20, "bold"),
                     justify="center",
-                    bg="#2D2D2D",
+                    bg="#2B2B2B",
                     fg="white",
-                    insertbackground="white"
+                    insertbackground="white",
+                    relief="flat",
+                    bd=0,
+                    highlightthickness=1,
+                    highlightbackground="#555555",
+                    highlightcolor="#4CAF50",
+                    validate="key",
+                    validatecommand=(self.validate, "%P")
                 )
 
                 cell.grid(
                     row=row,
                     column=col,
-                    padx=(3 if col % 3 == 0 else 1),
-                    pady=(3 if row % 3 == 0 else 1)
+                    padx=(4 if col % 3 == 0 else 1),
+                    pady=(4 if row % 3 == 0 else 1),
+                    ipadx=4,
+                    ipady=6
                 )
 
                 current_row.append(cell)
@@ -93,9 +107,11 @@ class SudokuGUI:
             activebackground="#45A049",
             activeforeground="white",
             relief="flat",
-            font=("Arial", 12, "bold"),
+            font=("Segoe UI", 11, "bold"),
             command=self.solve
         )
+        solve_button.bind("<Enter>", self.on_enter)
+        solve_button.bind("<Leave>", self.on_leave)
         solve_button.grid(row=0, column=0, padx=10)
 
         clear_button = tk.Button(
@@ -107,9 +123,11 @@ class SudokuGUI:
             activebackground="#D32F2F",
             activeforeground="white",
             relief="flat",
-            font=("Arial", 12, "bold"),
+            font=("Segoe UI", 11, "bold"),
             command=self.clear
         )
+        clear_button.bind("<Enter>", self.on_enter)
+        clear_button.bind("<Leave>", self.on_leave)
         clear_button.grid(row=0, column=1, padx=10)
 
         example_button = tk.Button(
@@ -121,9 +139,11 @@ class SudokuGUI:
             activebackground="#1976D2",
             activeforeground="white",
             relief="flat",
-            font=("Arial", 12, "bold"),
+            font=("Segoe UI", 11, "bold"),
             command=self.load_example
         )
+        example_button.bind("<Enter>", self.on_enter)
+        example_button.bind("<Leave>", self.on_leave)
         example_button.grid(row=0, column=2, padx=10)
 
         print(len(self.cells))
@@ -164,6 +184,7 @@ class SudokuGUI:
         
     def solve(self):
         start_time = time.perf_counter()
+
         board = self.get_board()
 
         solver = SudokuSolver(board)
@@ -171,16 +192,39 @@ class SudokuGUI:
         if solver.solve():
             self.display_board(board)
         else:
-            print("No solution exists for the given Sudoku puzzle.")
+            messagebox.showerror(
+                "No Solution",
+                "No solution exists for the given Sudoku puzzle."
+            )
+
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
-        self.timer_label.config(text=f"Elapsed time: {elapsed_time:.4f} seconds")
+
+        self.timer_label.config(
+            text=f"Elapsed time: {elapsed_time:.4f} seconds"
+        )
 
 
     def clear(self):
         for row in self.cells:
             for cell in row:
                 cell.delete(0, tk.END)
+
+    def validate_input(self, value):
+        if value == "":
+            return True
+
+        if value in "123456789" and len(value) == 1:
+            return True
+
+        return False
+    
+    def on_enter(self, event):
+        event.widget.config(cursor="hand2")
+
+
+    def on_leave(self, event):
+        event.widget.config(cursor="")
 
 
     def load_example(self):
