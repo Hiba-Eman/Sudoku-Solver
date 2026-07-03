@@ -1,0 +1,2 @@
+# Sudoku Suite uses only the Python standard library (tkinter).
+# No external dependencies are required.
