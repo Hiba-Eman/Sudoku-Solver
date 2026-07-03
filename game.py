@@ -1,16 +1,14 @@
 import tkinter as tk
 from tkinter import messagebox
-
 from generator import SudokuGenerator
 
 BOX_COLORS = ["#242424", "#2B2B2B"]
 WRONG_COLOR = "#5C2323"
 LOCKED_BG = "#3A3A3A"
 LOCKED_FG = "#BBBBBB"
-
+MAX_MISTAKES = 3
 
 class GameFrame(tk.Frame):
-    """Play mode - generated puzzle, difficulty levels, checking, win detection."""
 
     def __init__(self, parent, controller):
         super().__init__(parent, bg="#1E1E1E")
@@ -26,6 +24,9 @@ class GameFrame(tk.Frame):
         self.timer_running = False
         self.started = False
 
+        self.mistakes = 0
+        self.game_over = False
+
         validate = self.register(self.validate_input)
         self.validate = validate
 
@@ -38,8 +39,6 @@ class GameFrame(tk.Frame):
         elif not self.timer_running:
             self.timer_running = True
             self.update_timer()
-
-    # ---------- UI construction ----------
 
     def build_ui(self):
         top = tk.Frame(self, bg="#1E1E1E")
@@ -63,6 +62,12 @@ class GameFrame(tk.Frame):
             font=("Segoe UI", 14, "bold")
         )
         self.timer_label.pack(side="right")
+
+        self.mistakes_label = tk.Label(
+            top, text=f"Mistakes: 0/{MAX_MISTAKES}", bg="#1E1E1E", fg="#E53935",
+            font=("Segoe UI", 12, "bold")
+        )
+        self.mistakes_label.pack(side="right", padx=15)
 
         diff_frame = tk.Frame(self, bg="#1E1E1E")
         diff_frame.pack(pady=12)
@@ -131,14 +136,12 @@ class GameFrame(tk.Frame):
                     ipadx=4, ipady=6
                 )
 
-                cell.bind("<KeyRelease>", lambda e, r=row, c=col: self.on_cell_edit())
+                cell.bind("<KeyRelease>", lambda e, r=row, c=col: self.on_cell_edit(r, c))
 
                 current_row.append(cell)
 
             self.cells.append(current_row)
-
-    # ---------- game lifecycle ----------
-
+   
     def new_game(self):
         generator = SudokuGenerator()
         self.puzzle, self.solution = generator.generate_puzzle(self.difficulty.get())
@@ -167,13 +170,14 @@ class GameFrame(tk.Frame):
         self.status_label.config(text="")
         self.elapsed = 0
         self.timer_running = True
+        self.mistakes = 0
+        self.game_over = False
+        self.mistakes_label.config(text=f"Mistakes: 0/{MAX_MISTAKES}")
         self.update_timer()
 
     def go_back(self):
         self.timer_running = False
         self.controller.show_frame("menu")
-
-    # ---------- timer ----------
 
     def update_timer(self):
         if not self.timer_running:
@@ -183,8 +187,6 @@ class GameFrame(tk.Frame):
         self.timer_label.config(text=f"{minutes:02d}:{seconds:02d}")
         self.elapsed += 1
         self.after(1000, self.update_timer)
-
-    # ---------- board helpers ----------
 
     def get_board(self):
         board = []
@@ -205,9 +207,10 @@ class GameFrame(tk.Frame):
             return True
         return value in "123456789" and len(value) == 1
 
-    # ---------- checking / winning ----------
-
     def check_solution(self):
+        if self.game_over:
+            return
+
         board = self.get_board()
         complete = True
         all_correct = True
@@ -232,7 +235,7 @@ class GameFrame(tk.Frame):
 
         if not complete:
             self.status_label.config(
-                text="Keep going — the board isn't full yet.", fg="#FFC107"
+                text="Keep going. The board isn't full yet.", fg="#FFC107"
             )
             return
 
@@ -240,26 +243,72 @@ class GameFrame(tk.Frame):
             self.declare_win()
         else:
             self.status_label.config(
-                text="Some cells are incorrect — they're highlighted in red.",
+                text="Some cells are incorrect. They're highlighted in red.",
                 fg="#E53935"
             )
 
-    def on_cell_edit(self):
+    def on_cell_edit(self, row, col):
+        if self.game_over:
+            return
+
+        cell = self.cells[row][col]
+        value = cell.get()
+
+        if value == "":
+            self.reset_cell_color(row, col)
+            return
+
+        entered = int(value)
+
+        if entered == self.solution[row][col]:
+            self.reset_cell_color(row, col)
+            self.check_for_win()
+        else:
+            self.cells[row][col].config(bg=WRONG_COLOR)
+            self.register_mistake()
+
+    def register_mistake(self):
+        self.mistakes += 1
+        self.mistakes_label.config(text=f"Mistakes: {self.mistakes}/{MAX_MISTAKES}")
+
+        if self.mistakes >= MAX_MISTAKES:
+            self.trigger_game_over()
+
+    def check_for_win(self):
         board = self.get_board()
 
         for row in range(9):
             for col in range(9):
                 if not self.locked[row][col] and board[row][col] == 0:
-                    return  # board not full yet, nothing to check
+                    return  # board not full yet
 
         if board == self.solution:
             self.declare_win()
 
+    def freeze_board(self):
+        for row in range(9):
+            for col in range(9):
+                if not self.locked[row][col]:
+                    self.cells[row][col].config(state="disabled", disabledforeground="white")
+
+    def trigger_game_over(self):
+        self.game_over = True
+        self.timer_running = False
+        self.freeze_board()
+        self.status_label.config(text="Game Over! Too many mistakes.", fg="#E53935")
+        messagebox.showerror(
+            "Game Over",
+            "You've made 3 mistakes.\n\nPress New Game to try again."
+        )
+
     def declare_win(self):
-        if not self.timer_running:
+        if self.game_over:
             return
 
+        self.game_over = True
         self.timer_running = False
+        self.freeze_board()
+
         final_time = self.timer_label["text"]
         self.status_label.config(
             text=" Congratulations! You solved the puzzle!", fg="#4CAF50"

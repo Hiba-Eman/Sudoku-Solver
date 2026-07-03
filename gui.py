@@ -1,26 +1,18 @@
 import tkinter as tk
 from tkinter import messagebox
 import time
-
 from solver import SudokuSolver
 
-# Alternating background shades for 3x3 boxes (classic sudoku "zebra" look)
 BOX_COLORS = ["#242424", "#2B2B2B"]
 
-TRY_COLOR = "#FFD54F"
-PLACE_COLOR = "#66BB6A"
-BACKTRACK_COLOR = "#E53935"
-
-
 class MainMenuFrame(tk.Frame):
-    """Landing page - lets the user choose Play or Solve."""
 
     def __init__(self, parent, controller):
         super().__init__(parent, bg="#1E1E1E")
         self.controller = controller
 
         title = tk.Label(
-            self, text="🧩 Sudoku Suite",
+            self, text=" Sudoku Suite",
             bg="#1E1E1E", fg="white", font=("Segoe UI", 30, "bold")
         )
         title.pack(pady=(140, 10))
@@ -32,7 +24,7 @@ class MainMenuFrame(tk.Frame):
         subtitle.pack(pady=(0, 70))
 
         play_button = tk.Button(
-            self, text="🎮  Play Sudoku", width=24, height=2,
+            self, text="  Play Sudoku", width=24, height=2,
             bg="#4CAF50", fg="white", activebackground="#45A049",
             activeforeground="white", relief="flat",
             font=("Segoe UI", 13, "bold"),
@@ -41,7 +33,7 @@ class MainMenuFrame(tk.Frame):
         play_button.pack(pady=12)
 
         solve_button = tk.Button(
-            self, text="🤖  Solve Sudoku", width=24, height=2,
+            self, text="  Solve Sudoku", width=24, height=2,
             bg="#1E88E5", fg="white", activebackground="#1976D2",
             activeforeground="white", relief="flat",
             font=("Segoe UI", 13, "bold"),
@@ -61,18 +53,13 @@ class MainMenuFrame(tk.Frame):
     def on_show(self):
         pass
 
-
 class SolverFrame(tk.Frame):
-    """Solver mode - manual entry + animated backtracking solve."""
 
     def __init__(self, parent, controller):
         super().__init__(parent, bg="#1E1E1E")
         self.controller = controller
         self.cells = []
         self.solving = False
-        self.solver = None
-        self.gen = None
-        self.start_time = None
 
         validate = self.register(self.validate_input)
         self.validate = validate
@@ -168,8 +155,6 @@ class SolverFrame(tk.Frame):
             button.bind("<Enter>", self.on_enter)
             button.bind("<Leave>", self.on_leave)
 
-    # ---------- board <-> grid helpers ----------
-
     def get_board(self):
         board = []
         for row in self.cells:
@@ -191,71 +176,42 @@ class SolverFrame(tk.Frame):
         box_index = (row // 3) * 3 + (col // 3)
         self.cells[row][col].config(bg=BOX_COLORS[box_index % 2], fg="white")
 
-    # ---------- solving ----------
-
     def solve(self):
         if self.solving:
             return
 
         board = self.get_board()
-        self.solver = SudokuSolver(board)
+        solver = SudokuSolver(board)
 
-        if self.solver.find_empty() is None:
+        if solver.find_empty() is None:
             messagebox.showinfo("Already Solved", "This board has no empty cells.")
             return
 
         self.solving = True
         self.set_controls_state("disabled")
-        self.gen = self.solver.solve_animated()
-        self.start_time = time.perf_counter()
-        self.timer_label.config(text="Solving...")
-        self.after(1, self.animate_step)
 
-    def animate_step(self):
-        try:
-            # Process several algorithm steps per animation tick so the
-            # visualization stays fast even on puzzles with many backtracks.
-            for _ in range(6):
-                action, row, col, value = next(self.gen)
-
-                if action == "try":
-                    self.cells[row][col].delete(0, tk.END)
-                    self.cells[row][col].insert(0, str(value))
-                    self.cells[row][col].config(bg=TRY_COLOR, fg="black")
-                elif action == "place":
-                    self.cells[row][col].config(bg=PLACE_COLOR, fg="white")
-                elif action == "backtrack":
-                    self.cells[row][col].delete(0, tk.END)
-                    self.cells[row][col].config(bg=BACKTRACK_COLOR, fg="white")
-                    self.after(50, lambda r=row, c=col: self.reset_cell_color(r, c))
-
-            self.after(1, self.animate_step)
-
-        except StopIteration as stop:
-            solved = bool(stop.value)
-            self.finish_solve(solved)
-
-    def finish_solve(self, solved):
-        self.solving = False
-        self.set_controls_state("normal")
-        elapsed = time.perf_counter() - self.start_time
+        start_time = time.perf_counter()
+        solved = solver.solve()
+        elapsed = time.perf_counter() - start_time
 
         if solved:
+            self.display_board(board)
             for row in range(9):
                 for col in range(9):
                     self.reset_cell_color(row, col)
-            self.timer_label.config(text=f"Solved in {elapsed:.2f} seconds")
+            self.timer_label.config(text=f"Solved in {elapsed:.4f} seconds")
         else:
             self.timer_label.config(text="")
             messagebox.showerror(
                 "No Solution", "No solution exists for the given Sudoku puzzle."
             )
 
+        self.solving = False
+        self.set_controls_state("normal")
+
     def set_controls_state(self, state):
         for button in (self.solve_button, self.clear_button, self.example_button):
             button.config(state=state)
-
-    # ---------- misc ----------
 
     def clear(self):
         for row in range(9):

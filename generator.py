@@ -1,11 +1,6 @@
 import random
 
-
 class SudokuGenerator:
-    """
-    Generates a complete, valid Sudoku board and carves a playable puzzle
-    out of it by removing cells according to a difficulty level.
-    """
 
     DIFFICULTY_REMOVALS = {
         "easy": 36,
@@ -15,8 +10,6 @@ class SudokuGenerator:
 
     def __init__(self):
         self.board = [[0] * 9 for _ in range(9)]
-
-    # ---------- full board generation ----------
 
     def generate_full_board(self):
         self.board = [[0] * 9 for _ in range(9)]
@@ -66,13 +59,8 @@ class SudokuGenerator:
 
         return True
 
-    # ---------- puzzle carving ----------
-
     def generate_puzzle(self, difficulty="medium"):
-        """
-        Returns (puzzle, solution) where puzzle is the board with cells
-        removed and solution is the fully solved board it came from.
-        """
+
         full_board = self.generate_full_board()
         puzzle = [row[:] for row in full_board]
 

@@ -1,11 +1,8 @@
 import tkinter as tk
-
 from gui import MainMenuFrame, SolverFrame
 from game import GameFrame
 
-
 class SudokuSuiteApp(tk.Tk):
-    """Root window that hosts and switches between the app's pages."""
 
     WIDTH = 650
     HEIGHT = 800
@@ -54,7 +51,6 @@ class SudokuSuiteApp(tk.Tk):
 
         if hasattr(frame, "on_show"):
             frame.on_show()
-
 
 if __name__ == "__main__":
     app = SudokuSuiteApp()
